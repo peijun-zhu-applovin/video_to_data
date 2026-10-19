@@ -31,6 +31,18 @@
 - `/root/video_to_data/CLAUDE.md` corrected (2.2.0 pin stale; run_retarget_local.sh is
   native-usable; two-venv layout recorded).
 
+## Continued same session (after Peijun's 3D review)
+- Peijun judged penetration noticeable → measured for real
+  (`agents/scripts/analyze_penetration.py`, correct scale, actual meshes): 14.3 / 20.9 mm
+  robot max; MANO source itself 8.1 / 11.9 mm; hand-hand 0. Peijun: acceptable, proceed.
+- P4 dummy_agent: first native Kit boot in this pod WORKED (env.sh preamble sufficient);
+  knife seq, real URDFs, 300 steps recorded, h264 video, success marker, exit 0.
+- P5 train (1 env × 1 iter, model_0.pt) + eval (--max_steps 200) + policy export
+  (JIT + ONNX) all exit 0. **Smoke scope complete.**
+- Doc bug found: repo CLAUDE.md eval command uses nonexistent `--eval_episodes`; actual
+  flag is `--max_steps` (recorded in agents/docs/1-native-env.md).
+- Smoke run locked with PROVENANCE.md at logs/rsl_rl/sharpa_v2d/2026-08-25_18-02-00_smoke/.
+
 ## Risky / open
 - dummy_agent/train not yet exercised natively — first Kit boot in this pod is the next
   unknown (EULA/Vulkan env prepared in agents/env.sh).

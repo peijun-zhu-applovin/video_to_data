@@ -40,6 +40,18 @@ for those first. This file only records what upstream cannot know: this machine.
   `/root/DexPrior/agents/docs/17_ik_objective_comparison.md`; add V2D's retargeter there
   if it gets characterized.
 
+## GPU assignment (standing, Peijun 2026-08-26)
+
+**Use GPU0 only; GPU1 belongs to regrind jobs** — training, evals, loaders, everything in
+this repo goes to cuda:0. Select via each script's `--device cuda:0`, never
+`CUDA_VISIBLE_DEVICES` (Omniverse degrades ~8% when masked — regrind finding). Caveat: a
+Kit process still opens a small idle context (~0.5 GB, 0% util) on GPU1 during device
+enumeration; harmless to regrind, but if GPU1 must be completely untouched, masking is
+the only option and costs that ~8%. Also per Peijun: evals/rollouts run AFTER training
+completes, sequentially — do not run them in parallel with training.
+Eval with `--video` needs `--num_envs >= 7`: `v2d_hand_env_cfg.py:406` pins
+`viewer.env_index = 6` (dummy_agent.py clamps it, the rsl_rl eval path does not).
+
 ## Current goal (2026-08-25)
 
 Reproduce **Robotic Grounding** (stage 3) — reconstruction is skippable (public datasets

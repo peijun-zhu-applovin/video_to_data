@@ -40,6 +40,19 @@ uv pip install -p .venv-loader --no-build-isolation "git+https://github.com/matt
    jointly and `cmeel-boost==1.87.0.1` declares `numpy>=2.2`; the sequential downgrade
    mirrors the Dockerfile's last RUN and works at runtime (Docker image has the same
    declared conflict).
+**⚠ INSTALL ORDER (learned the hard way 2026-08-27): Isaac layer FIRST, pipeline pins
+SECOND** — exactly like the Dockerfile, which layers the pin list on top of the isaac-lab
+base image. The isaacsim/isaaclab install silently clobbers pipeline pins: verified
+downgrades/upgrades were `pin` 3.7.0→2.7.0 (+ eigenpy/cmeel-*/pin-pink, plus a stray
+`hpp-fcl` whose presence breaks the cmeel prefix), `qpsolvers` 4.9.0→4.13.0 (daqp API
+mismatch: "solve() got an unexpected keyword argument 'primal_start'"), `websockets`
+16→12 (viser needs websockets.asyncio). If the layers were applied in the wrong order,
+re-apply the whole Dockerfile pin list, `uv pip uninstall hpp-fcl`, and if pinocchio still
+imports the old build, `rm -rf .venv/.../site-packages/cmeel.prefix` and `--reinstall`
+the closure (cmeel packages share that prefix; overlapping installs leave stale files).
+Then numpy<2 + scipy==1.15.3 again, and re-verify: BuildFromMJCF exists, sm_120 in torch,
+isaaclab imports, websockets>=15, qpsolvers==4.9.0.
+
 3. Isaac layer (regrind recipe adapted to **v2.3.2**; scripted in the worklog):
    `isaacsim[all,extscache]==5.1.0 --extra-index-url https://pypi.nvidia.com` → **reinstall
    torch cu128** (isaacsim clobbers it with cu126; re-check sm_120) → `setuptools<81` →
@@ -82,6 +95,13 @@ over them. Natively, symlink instead (done):
 - taco needs BOTH tool and target meshes per sequence; `--mano-dir` layout is
   `<HMD>/mano/models/MANO_{LEFT,RIGHT}.pkl` (the `BMC/` mention in `run_load_local.sh` is
   vestigial — nothing in the loader reads it).
+- **The repo CLAUDE.md's eval command is stale**: `eval.py` has no `--eval_episodes`
+  (argparse error); the episode-length control is `--max_steps N`. `--checkpoint` comes
+  from the appended RSL-RL cli args and works. Verified 2026-08-26.
+- Real-mesh penetration measurement (correct scale, actual mesh not hull):
+  `agents/scripts/analyze_penetration.py` → knife seq max 14.3 mm robot / 8.1 mm already in
+  the MANO source; brush seq 20.9 mm / 11.9 mm; hand-hand 0. IK has no collision term
+  (FrameTasks only), so reference penetration at this scale is expected and left to physics.
 
 ## 3D review tooling
 
@@ -90,3 +110,17 @@ over them. Natively, symlink instead (done):
 `.metrics.json` sidecar, and self-validates FK vs the parquet's stored task frames
 (agreement ~7e-8 m). Viewer page: `artifacts/repro-taco/glb/index.html` (vendored three.js
 at `artifacts/vendor/`, copied from regrind).
+
+## Penetration measurement: thin-shell blindness (learned 2026-08-31, from Peijun's review)
+
+Depth-into-solid signed distance (trimesh signed_distance on the real mesh) CANNOT detect
+a finger crossing a thin-shell object: past the ~2 mm wall the probe reads "outside the
+solid" (the cavity is exterior). Measure wall crossing as **segment-vs-surface
+intersections** along the kinematic chain (consecutive frame origins / capsule axes,
+`bowl.ray.intersects_location`). Confirmed case: empty_cup_bowl rollout, right thumb
+PP→IP segment crosses the bowl wall from t=0 (spawned interpenetrating by RSI reset with
+an IK reference that presses through the wall) until ~t=4 s. Sim-side enablers:
+`assets/rigid_object.py` spawns objects with collider_type='convex_decomposition',
+contact_offset=0, rest_offset=0, max_depenetration_velocity=1.0 — a 1.9 mm shell
+(est. 2·V/A; bowl solid 80 cm³ vs hull 1150 cm³) is below reliable PhysX contact
+generation. Upstream's hand_penetration gate (convex hull) can't see this either.

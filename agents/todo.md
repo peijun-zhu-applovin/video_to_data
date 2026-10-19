@@ -1,25 +1,31 @@
 # TODO — video_to_data
 
-Goal: reproduce **Robotic Grounding** (Peijun, 2026-08-25).
+Goal: reproduce **Robotic Grounding** (Peijun, 2026-08-25). **Smoke-scope COMPLETE 2026-08-26**
+(load → retarget → vis → dummy → train → eval, all native).
+
+## In flight
+- (nothing — official full run COMPLETE 2026-08-31: 20000 iters, reward ~127, 20 rollout
+  videos + final-checkpoint rollout GLB on the pages)
 
 ## Human
-- [ ] **Review P1–P3 pages** (load smoke, pipeline funnel + quality-gate incident, 3D GLB
-      review) — dummy/train smoke is held on this per the 2-unreviewed cadence:
-      http://localhost:8889/files/video_to_data/robotic_grounding/artifacts/repro-taco/index.html
-- [ ] Call: fix the taco units bug in `filter_penetrations.py::_load_hull` (one-liner,
-      mirrors vis stage) so `taco_quality.csv` becomes meaningful?
-- [ ] W&B project for this repo — needed before the first logged training run.
+- [ ] Review pages when convenient:
+      https://peijun-reports.axon.tools/files/video_to_data/robotic_grounding/artifacts/repro-taco/index.html
+- [ ] W&B key restore (netrc lost): `! wandb login --host https://cbf-wandb.alcfd.com <key>`,
+      then agent syncs knife_2k_v1 + empty_cup_bowl_full to project video_to_data.
+- [ ] Optional: resume knife_2k_v1 to 20000 after the official run (not official; skippable).
+- [ ] Call: patch filter_penetrations.py `_cm.obj` scale (one-liner) so taco_quality.csv is
+      meaningful? (Real penetration measured separately: 14–21 mm, ~half inherited from MANO
+      source — agents/scripts/analyze_penetration.py.)
+- [ ] Commit of today's agents/ updates (worklog, docs, analyzer script) is prepared but
+      NOT made — say the word.
 
-## Agent (after review)
-- [ ] P4: dummy_agent smoke (`Sharpa-V2D-v0-Play`, headless, record_video) on GPU0.
-- [ ] P5: train 1-iter + eval smoke; stop before any real training (approval gate).
-- [ ] If scaling up: extract more taco sequences from `/root/Data/taco-raw/*.zip`
-      (full V1 = 2316 seqs; meshes already all linked).
+## Agent (after decisions)
+- [ ] If real training: extract sequences, chain per-checkpoint eval at launch
+      (chained-eval), live progress page, W&B logging.
 
 ## Done (2026-08-26)
-- [x] Environment route decided (native uv venvs) and BUILT: Env A loader,
-      Env B pipeline + isaacsim 5.1.0 / IsaacLab v2.3.2. Recipe:
-      `robotic_grounding/agents/docs/1-native-env.md`.
-- [x] `<HMD>` assembled from /root/Data (symlinks); taco load + retarget + support +
-      vis + assess all ran natively (2 sequences).
-- [x] Review pages shipped (`artifacts/repro-taco/`, incl. 3D GLB viewer).
+- [x] Native env route built and validated end-to-end (two uv venvs; recipe in
+      robotic_grounding/agents/docs/1-native-env.md).
+- [x] taco: load 2/2 → 206 URDFs → IK 2/2 → support → vis (mp4+viser) → assess.
+- [x] 3D GLB review shipped; penetration adjudicated by Peijun (acceptable, proceed).
+- [x] dummy_agent smoke (first native Kit boot in pod) + train 1-iter + eval + policy export.
