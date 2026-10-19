@@ -1,0 +1,12 @@
+# Reset for HIGH-QUALITY IK references only (e.g. regrind's non-penetrating dextipl solves).
+# Peijun 2026-10-02: "仅当有 regrind 这种高质量 IK 的时候" — use only when the reference grasp is
+# physically clean; V2D-IK runs keep reference.yaml (factor [0, 0.7], 20 settling steps).
+# Finger factor x reference finger angles (0 = fully open, 1 = reference): [0, 0.7] -> [0.75, 0.93];
+# VOC settling hold after reset: 20 -> 10 steps.
+defaults:
+  - reference
+  - _self_
+
+reset_finger_openness_min: 0.75
+reset_finger_openness: 0.93
+voc_decay_steps: 10

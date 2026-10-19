@@ -506,3 +506,26 @@ def test_recon_body_settling_offsets_voc_and_reference_release_timeline():
 
         advance()
         assert (age.numpy().tolist(), episode_step.numpy().tolist(), timestep.numpy().tolist()) == ([51], [51], [8])
+
+
+def test_reference_reset_finger_openness_min_bounds_the_sampled_factor():
+    import warp as wp
+
+    from flash_chord.lifecycle.reset import ReferenceReset, ReferenceResetConfig
+
+    with pytest.raises(ValueError, match="reset_finger_openness_min"):
+        ReferenceResetConfig(reset_finger_openness_min=0.8, reset_finger_openness=0.7)
+    with pytest.raises(ValueError, match="reset_finger_openness_min"):
+        ReferenceResetConfig(reset_finger_openness_min=-0.1)
+
+    config = ReferenceResetConfig(reset_finger_openness_min=0.75, reset_finger_openness=0.93)
+    with wp.ScopedDevice("cuda:0"):
+        reset = ReferenceReset.build(world_count=4096, num_frames=10, config=config)
+        mask = wp.ones(4096, dtype=wp.int32)
+        target = wp.array([0.0], dtype=wp.float32)
+        reset.sample(mask, target)
+        factor = reset.finger_scale.numpy()
+
+    assert factor.min() >= 0.75
+    assert factor.max() <= 0.93
+    assert factor.max() - factor.min() > 0.15  # spans the interval, not a constant

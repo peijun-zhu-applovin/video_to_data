@@ -230,6 +230,8 @@ class ReferenceResetConfig:
     """Random reference reset with finger opening and a configurable VOC settling phase."""
 
     reset_finger_openness: float = 0.7
+    # Lower bound of the per-reset finger factor; the factor is uniform in [min, reset_finger_openness].
+    reset_finger_openness_min: float = 0.0
     always_reset_to_first_frame: bool = False
     reset_to_first_frame_probability: float = 0.1
     first_frame_voc_threshold: float = 0.1
@@ -240,6 +242,11 @@ class ReferenceResetConfig:
     def __post_init__(self) -> None:
         if not 0.0 <= self.reset_finger_openness <= 1.0:
             raise ValueError(f"reset_finger_openness must be in [0, 1], got {self.reset_finger_openness}")
+        if not 0.0 <= self.reset_finger_openness_min <= self.reset_finger_openness:
+            raise ValueError(
+                "reset_finger_openness_min must be in [0, reset_finger_openness], "
+                f"got {self.reset_finger_openness_min} with reset_finger_openness={self.reset_finger_openness}"
+            )
         if not 0.0 <= self.reset_to_first_frame_probability <= 1.0:
             raise ValueError(
                 f"reset_to_first_frame_probability must be in [0, 1], got {self.reset_to_first_frame_probability}"
@@ -348,6 +355,7 @@ def sample_reference_reset(
     always_first_frame: int,
     first_frame_probability: wp.array(dtype=wp.float32),
     first_frame_voc_threshold: float,
+    reset_finger_openness_min: float,
     reset_finger_openness: float,
     seed: int,
     curriculum_voc_scale: wp.array(dtype=wp.float32),
@@ -373,7 +381,7 @@ def sample_reference_reset(
                 frame = 0
 
     reset_frame[world] = frame
-    finger_scale[world] = wp.randf(rng) * reset_finger_openness
+    finger_scale[world] = reset_finger_openness_min + wp.randf(rng) * (reset_finger_openness - reset_finger_openness_min)
     steps_since_reset[world] = 0
     if voc_decay_steps == 0:
         applied_voc_scale[world] = curriculum_voc_scale[0]
@@ -551,6 +559,7 @@ class ReferenceReset:
                 int(self.config.always_reset_to_first_frame),
                 self.first_frame_probability,
                 self.config.first_frame_voc_threshold,
+                self.config.reset_finger_openness_min,
                 self.config.reset_finger_openness,
                 self.config.seed,
                 curriculum_voc_scale,
